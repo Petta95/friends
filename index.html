@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Il Gioco di Petta 🐾</title>
   <style>
     /* ─── Reset & base ─── */
@@ -17,6 +17,7 @@
       font-family: 'Segoe UI', sans-serif;
       min-height: 100vh;
       overflow: hidden;
+      touch-action: manipulation;
     }
     .screen { display: none; width: 100vw; min-height: 100vh; }
     .screen.active { display: flex; }
@@ -52,7 +53,8 @@
       cursor: pointer;
       transition: transform .2s, border-color .2s, box-shadow .2s;
     }
-    .avatar-card:hover { transform: scale(1.05); }
+    .avatar-card:hover  { transform: scale(1.05); }
+    .avatar-card:active { transform: scale(0.97); }
     .avatar-card:nth-child(1):hover { border-color: #f87171; box-shadow: 0 0 24px rgba(248,113,113,0.4); }
     .avatar-card:nth-child(2):hover { border-color: #fb923c; box-shadow: 0 0 24px rgba(251,146,60,0.4); }
     .avatar-card:nth-child(3):hover { border-color: #4ade80; box-shadow: 0 0 24px rgba(74,222,128,0.4); }
@@ -64,28 +66,49 @@
     }
     .avatar-img-wrap img { width: 100%; height: 100%; object-fit: contain; }
     .avatar-name { font-size: 1.4rem; font-weight: 700; }
-    .avatar-sub { font-size: 0.85rem; color: #a0a0c0; font-style: italic; }
+    .avatar-sub  { font-size: 0.85rem; color: #a0a0c0; font-style: italic; }
+
+    /* ─── Responsive: Avatar screen ─── */
+    @media (max-width: 600px) {
+      .game-title { font-size: 1.5rem; }
+      .avatar-container { padding: 1rem; gap: 1.25rem; }
+      .avatar-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; width: 100%; }
+      .avatar-card { padding: 1rem 0.75rem; }
+      .avatar-img-wrap { width: 80px; height: 80px; font-size: 56px; }
+      .avatar-name { font-size: 1.1rem; }
+      .avatar-sub  { font-size: 0.75rem; }
+    }
 
     /* ─── SCREEN 2: Map ─── */
     #screen-map {
       align-items: center; justify-content: center;
-      background: #1a1a2e; flex-direction: column; gap: 0.75rem;
+      background: #1a1a2e; flex-direction: column; gap: 0.5rem;
     }
     .map-wrapper { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
-    .map {
+
+    /* Sizing container — JS sets width/height to match scaled map */
+    #map-scale-container {
       position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .map {
+      position: absolute;
+      top: 0; left: 0;
       width: 800px; height: 560px;
       background: #3d7a45;
       border: 3px solid #2d5a32;
       border-radius: 8px;
       overflow: hidden;
-      flex-shrink: 0;
+      transform-origin: top left;
     }
-    .road { position: absolute; background: #6b7280; }
+    .road   { position: absolute; background: #6b7280; }
     .road-h { left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 60px; }
     .road-v { top: 0; bottom: 0; left: 50%; transform: translateX(-50%); width: 60px; }
-    .tree { position: absolute; font-size: 28px; pointer-events: none; user-select: none; }
-    .map-hint { color: #64748b; font-size: 0.82rem; }
+    .tree   { position: absolute; font-size: 28px; pointer-events: none; user-select: none; }
+    .map-hint { color: #64748b; font-size: 0.82rem; text-align: center; padding: 0 8px; }
 
     #avatar-sprite {
       position: absolute;
@@ -115,7 +138,7 @@
       font-size: 40px;
       animation: hs-pulse 2s ease-in-out infinite;
       filter: drop-shadow(0 0 6px rgba(255,255,255,0.4));
-      cursor: default;
+      cursor: pointer;
     }
     @keyframes hs-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
     .hs-label {
@@ -127,15 +150,57 @@
       padding: 3px 10px; background: #7c3aed;
       color: #fff; border: none; border-radius: 6px;
       font-size: 0.7rem; cursor: pointer; white-space: nowrap;
-      font-weight: 700;
+      font-weight: 700; touch-action: manipulation;
     }
     .hs-btn.visible {
       display: block;
       animation: btn-pop .2s ease;
     }
     @keyframes btn-pop { from{transform:scale(.5);opacity:0} to{transform:scale(1);opacity:1} }
-    .hotspot.done .hs-icon { filter: grayscale(1) opacity(.4); animation: none; }
+    .hotspot.done .hs-icon { filter: grayscale(1) opacity(.4); animation: none; cursor: default; }
     .hotspot.done .hs-label::after { content: ' ✓'; color: #4ade80; }
+
+    /* ─── D-PAD touch controls ─── */
+    #dpad {
+      display: none;
+      position: fixed;
+      bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+      right:  calc(20px + env(safe-area-inset-right,  0px));
+      z-index: 200;
+      width: 148px;
+      height: 148px;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .dpad-btn {
+      position: absolute;
+      width: 48px; height: 48px;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 20px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .06s, border-color .06s;
+      outline: none;
+    }
+    .dpad-btn.pressed {
+      background: rgba(255,255,255,0.42);
+      border-color: rgba(255,255,255,0.75);
+    }
+    .dpad-up    { top: 0;     left: 50%; transform: translateX(-50%); }
+    .dpad-left  { top: 50%;  left: 0;   transform: translateY(-50%); }
+    .dpad-right { top: 50%;  right: 0;  transform: translateY(-50%); }
+    .dpad-down  { bottom: 0; left: 50%; transform: translateX(-50%); }
+
+    @media (pointer: coarse), (max-width: 768px) {
+      #dpad.map-active { display: block; }
+    }
 
     /* ─── Popup overlay ─── */
     .popup-overlay {
@@ -153,19 +218,29 @@
       text-align: center;
       box-shadow: 0 8px 40px rgba(0,0,0,0.7);
     }
-    .popup-box h2 { font-size: 1.6rem; font-weight: 800; }
-    .popup-box p  { font-size: 1.05rem; line-height: 1.6; }
+    .popup-box h2  { font-size: 1.6rem; font-weight: 800; }
+    .popup-box p   { font-size: 1.05rem; line-height: 1.6; }
     .popup-box img { max-width: 100%; border-radius: 8px; max-height: 260px; object-fit: contain; }
     .popup-box video { max-width: 100%; border-radius: 8px; }
     .popup-btn {
       padding: 0.6rem 1.6rem; border: none;
       border-radius: 8px; font-weight: 700;
       cursor: pointer; transition: transform .1s;
+      touch-action: manipulation;
     }
-    .popup-btn:hover { transform: scale(1.05); }
+    .popup-btn:hover  { transform: scale(1.05); }
+    .popup-btn:active { transform: scale(0.97); }
     .popup-btn.big   { background: #4ade80; color: #000; font-size: 1.1rem; padding: 0.75rem 2rem; }
     .popup-btn.small { background: #6b7280; color: #ccc; }
     .popup-btn.close-btn { background: #7c3aed; color: #fff; font-size: 1rem; padding: 0.65rem 1.8rem; }
+
+    /* ─── Responsive: Popup ─── */
+    @media (max-width: 600px) {
+      .popup-box { padding: 1.25rem 1rem; gap: 0.9rem; }
+      .popup-box h2 { font-size: 1.25rem; }
+      .popup-box p  { font-size: 0.9rem; }
+      .popup-btn.big { font-size: 1rem; padding: 0.65rem 1.5rem; }
+    }
 
     /* ─── Celebrity grid ─── */
     .celeb-grid {
@@ -182,12 +257,20 @@
       transition: border-color .2s, transform .2s;
       display: flex; align-items: center; justify-content: center;
       background: #3d1a3d; font-size: 4rem;
+      touch-action: manipulation;
     }
     .celeb-card img { width: 100%; height: 100%; object-fit: cover; }
-    .celeb-card:hover { transform: scale(1.06); border-color: #f472b6; }
+    .celeb-card:hover  { transform: scale(1.06); border-color: #f472b6; }
+    .celeb-card:active { transform: scale(0.97); }
     .celeb-card.selected {
       border-color: #f472b6;
       box-shadow: 0 0 20px rgba(244,114,182,0.6);
+    }
+
+    /* ─── Responsive: Celebrity grid ─── */
+    @media (max-width: 600px) {
+      .celeb-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+      .celeb-card { width: auto; height: 120px; font-size: 3rem; }
     }
 
     /* ─── SCREEN 3: End ─── */
@@ -215,6 +298,13 @@
     @keyframes end-fade {
       from { opacity: 0; transform: translateY(20px); }
       to   { opacity: 1; transform: none; }
+    }
+
+    /* ─── Responsive: End screen ─── */
+    @media (max-width: 600px) {
+      .end-title { font-size: 2.2rem; }
+      .end-sub   { font-size: 1.1rem; }
+      .end-gif   { max-width: min(260px, 85vw); }
     }
   </style>
 </head>
@@ -274,29 +364,39 @@
   ═══════════════════════════════════════════ -->
   <div id="screen-map" class="screen">
     <div class="map-wrapper">
-      <div class="map" id="map">
-        <!-- Strade -->
-        <div class="road road-h"></div>
-        <div class="road road-v"></div>
-        <!-- Alberi decorativi -->
-        <div class="tree" style="left:45px;top:45px">🌳</div>
-        <div class="tree" style="left:700px;top:45px">🌲</div>
-        <div class="tree" style="left:45px;top:475px">🌲</div>
-        <div class="tree" style="left:700px;top:475px">🌳</div>
-        <div class="tree" style="left:350px;top:25px">🌿</div>
-        <div class="tree" style="left:350px;top:505px">🌿</div>
-        <div class="tree" style="left:18px;top:258px">🍀</div>
-        <div class="tree" style="left:745px;top:258px">🍀</div>
-        <div class="tree" style="left:200px;top:200px">🌾</div>
-        <div class="tree" style="left:540px;top:200px">🌾</div>
-        <div class="tree" style="left:200px;top:350px">🌾</div>
-        <div class="tree" style="left:540px;top:350px">🌾</div>
-        <!-- Avatar sprite (posizionato da JS) -->
-        <img id="avatar-sprite" src="" alt="avatar">
-        <!-- Hotspot iniettati da JS -->
+      <div id="map-scale-container">
+        <div class="map" id="map">
+          <!-- Strade -->
+          <div class="road road-h"></div>
+          <div class="road road-v"></div>
+          <!-- Alberi decorativi -->
+          <div class="tree" style="left:45px;top:45px">🌳</div>
+          <div class="tree" style="left:700px;top:45px">🌲</div>
+          <div class="tree" style="left:45px;top:475px">🌲</div>
+          <div class="tree" style="left:700px;top:475px">🌳</div>
+          <div class="tree" style="left:350px;top:25px">🌿</div>
+          <div class="tree" style="left:350px;top:505px">🌿</div>
+          <div class="tree" style="left:18px;top:258px">🍀</div>
+          <div class="tree" style="left:745px;top:258px">🍀</div>
+          <div class="tree" style="left:200px;top:200px">🌾</div>
+          <div class="tree" style="left:540px;top:200px">🌾</div>
+          <div class="tree" style="left:200px;top:350px">🌾</div>
+          <div class="tree" style="left:540px;top:350px">🌾</div>
+          <!-- Avatar sprite (posizionato da JS) -->
+          <img id="avatar-sprite" src="" alt="avatar">
+          <!-- Hotspot iniettati da JS -->
+        </div>
       </div>
-      <div class="map-hint">⬆⬇⬅➡ oppure WASD per muoverti · avvicinati alle icone per interagire</div>
+      <div class="map-hint" id="map-hint">⬆⬇⬅➡ oppure WASD per muoverti · avvicinati alle icone per interagire</div>
     </div>
+  </div>
+
+  <!-- D-pad touch controls (visibile su touch/mobile) -->
+  <div id="dpad">
+    <button class="dpad-btn dpad-up"    data-key="ArrowUp">▲</button>
+    <button class="dpad-btn dpad-left"  data-key="ArrowLeft">◀</button>
+    <button class="dpad-btn dpad-right" data-key="ArrowRight">▶</button>
+    <button class="dpad-btn dpad-down"  data-key="ArrowDown">▼</button>
   </div>
 
   <!-- ═══════════════════════════════════════════
@@ -323,14 +423,6 @@
 
   <script>
     /* ─────────────────────────────────────
-       UTILS
-    ───────────────────────────────────── */
-    function showScreen(id) {
-      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
-    }
-
-    /* ─────────────────────────────────────
        STATE
     ───────────────────────────────────── */
     const state = {
@@ -339,6 +431,67 @@
       pos: { x: 376, y: 256 },
       keys: new Set()
     };
+
+    /* ─────────────────────────────────────
+       MAP SCALING
+    ───────────────────────────────────── */
+    function scaleMap() {
+      const isTouch = window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 768;
+      const dpadReserved = isTouch ? 190 : 0;
+      const hintH  = 32;
+      const pad    = 12;
+      const maxW   = window.innerWidth  - pad;
+      const maxH   = window.innerHeight - hintH - dpadReserved - pad;
+      const scale  = Math.min(maxW / 800, maxH / 560, 1);
+
+      document.getElementById('map').style.transform = `scale(${scale})`;
+      const c = document.getElementById('map-scale-container');
+      c.style.width  = Math.round(800 * scale) + 'px';
+      c.style.height = Math.round(560 * scale) + 'px';
+    }
+    window.addEventListener('resize', scaleMap);
+    scaleMap();
+
+    /* ─────────────────────────────────────
+       UTILS
+    ───────────────────────────────────── */
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      document.getElementById('dpad').classList.toggle('map-active', id === 'screen-map');
+      if (id === 'screen-map') {
+        scaleMap();
+        updateMapHint();
+      }
+    }
+
+    function updateMapHint() {
+      const isTouch = window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 768;
+      document.getElementById('map-hint').textContent = isTouch
+        ? '🕹 Usa il pad per muoverti · tocca le icone per interagire'
+        : '⬆⬇⬅➡ oppure WASD per muoverti · avvicinati alle icone per interagire';
+    }
+
+    /* ─────────────────────────────────────
+       D-PAD touch controls
+    ───────────────────────────────────── */
+    document.querySelectorAll('.dpad-btn').forEach(btn => {
+      const key = btn.dataset.key;
+      btn.addEventListener('touchstart', e => {
+        e.preventDefault();
+        state.keys.add(key);
+        btn.classList.add('pressed');
+      }, { passive: false });
+      btn.addEventListener('touchend', e => {
+        e.preventDefault();
+        state.keys.delete(key);
+        btn.classList.remove('pressed');
+      }, { passive: false });
+      btn.addEventListener('touchcancel', () => {
+        state.keys.delete(key);
+        btn.classList.remove('pressed');
+      });
+    });
 
     /* ─────────────────────────────────────
        STARS (Screen 1)
@@ -366,11 +519,9 @@
         state.completed = new Set();
         state.pos = { x: 376, y: 256 };
 
-        // Rimuovi eventuale fallback precedente
         const oldFb = document.getElementById('avatar-fallback');
         if (oldFb) oldFb.remove();
 
-        // Imposta sprite
         const sprite = document.getElementById('avatar-sprite');
         sprite.style.display = '';
         sprite.src = 'assets/' + state.avatar + '.png';
@@ -385,7 +536,6 @@
           document.getElementById('map').appendChild(fb);
         };
 
-        // Reset hotspot completati
         document.querySelectorAll('.hotspot').forEach(hs => {
           hs.classList.remove('done');
           hs.querySelector('.hs-btn').classList.remove('visible');
@@ -400,10 +550,10 @@
        HOTSPOTS
     ───────────────────────────────────── */
     const HOTSPOTS = [
-      { id: 'paura', icon: '👻', label: 'Paura',  x: 140, y: 110 },
-      { id: 'amore', icon: '❤️', label: 'Amore',  x: 600, y: 110 },
+      { id: 'paura', icon: '👻', label: 'Paura',     x: 140, y: 110 },
+      { id: 'amore', icon: '❤️', label: 'Amore',     x: 600, y: 110 },
       { id: 'sport', icon: '🦹', label: 'Criminali', x: 140, y: 420 },
-      { id: 'soldi', icon: '💰', label: 'Soldi',  x: 600, y: 420 }
+      { id: 'soldi', icon: '💰', label: 'Soldi',     x: 600, y: 420 }
     ];
 
     function renderHotspots() {
@@ -420,6 +570,14 @@
           <button class="hs-btn" id="btn-${hs.id}" onclick="openPopup('${hs.id}')">Apri</button>
         `;
         map.appendChild(wrap);
+
+        /* Tap sull'icona: apre il popup se l'avatar è abbastanza vicino */
+        wrap.querySelector('.hs-icon').addEventListener('click', () => {
+          if (state.completed.has(hs.id)) return;
+          const cx = state.pos.x + 24;
+          const cy = state.pos.y + 24;
+          if (Math.hypot(cx - hs.x, cy - hs.y) < 120) openPopup(hs.id);
+        });
       });
     }
     renderHotspots();
@@ -604,12 +762,12 @@
 
     /* ── SOLDI 💰 ── */
     const SOLDI_STEPS = [
-      { caption: 'Cerchiamo i soldi insieme 🔍',                            img: 'assets/soldi-1.jpg' },
-      { caption: 'Cerchiamo meglio 👀',                                     img: 'assets/soldi-2.jpg' },
-      { caption: 'Scaviamo più a fondo ⛏️',                                  img: 'assets/soldi-3.jpg' },
-      { caption: 'Dai ci siamo quasi... 🤞',                                img: 'assets/soldi-4.jpg' },
+      { caption: 'Cerchiamo i soldi insieme 🔍',                             img: 'assets/soldi-1.jpg' },
+      { caption: 'Cerchiamo meglio 👀',                                      img: 'assets/soldi-2.jpg' },
+      { caption: 'Scaviamo più a fondo ⛏️',                                   img: 'assets/soldi-3.jpg' },
+      { caption: 'Dai ci siamo quasi... 🤞',                                 img: 'assets/soldi-4.jpg' },
       { caption: 'Non abbiamo trovato niente, ma forse c\'è una speranza...', img: 'assets/gif-povero.gif' },
-      { caption: 'Forse mandando qua il curriculum... 📄',                         img: 'assets/soldi-5.png' }
+      { caption: 'Forse mandando qua il curriculum... 📄',                    img: 'assets/soldi-5.png' }
     ];
 
     function renderSoldi(box, step) {
