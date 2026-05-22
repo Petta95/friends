@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Il Gioco di Petta 🐾</title>
+  <style>
+    /* ─── Reset & base ─── */
+    :root {
+      --bg-dark: #0a0a1a;
+      --text: #f0f0f0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-dark);
+      color: var(--text);
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    .screen { display: none; width: 100vw; min-height: 100vh; }
+    .screen.active { display: flex; }
+
+    /* ─── SCREEN 1: Stars ─── */
+    .stars { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+    .star {
+      position: absolute; width: 2px; height: 2px;
+      background: #fff; border-radius: 50%;
+      animation: twinkle var(--dur, 2s) ease-in-out infinite;
+    }
+    @keyframes twinkle { 0%,100%{opacity:.15} 50%{opacity:1} }
+
+    /* ─── SCREEN 1: Avatar selection ─── */
+    .avatar-container {
+      position: relative; z-index: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      width: 100%; padding: 2rem; gap: 2rem;
+    }
+    .game-title {
+      font-size: 2.2rem; font-weight: 800; text-align: center;
+      background: linear-gradient(135deg, #a78bfa, #f472b6);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .avatar-grid { display: grid; grid-template-columns: repeat(2, 260px); gap: 1.5rem; }
+    .avatar-card {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 16px; padding: 1.5rem;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 0.75rem;
+      cursor: pointer;
+      transition: transform .2s, border-color .2s, box-shadow .2s;
+    }
+    .avatar-card:hover { transform: scale(1.05); }
+    .avatar-card:nth-child(1):hover { border-color: #f87171; box-shadow: 0 0 24px rgba(248,113,113,0.4); }
+    .avatar-card:nth-child(2):hover { border-color: #fb923c; box-shadow: 0 0 24px rgba(251,146,60,0.4); }
+    .avatar-card:nth-child(3):hover { border-color: #4ade80; box-shadow: 0 0 24px rgba(74,222,128,0.4); }
+    .avatar-card:nth-child(4):hover { border-color: #38bdf8; box-shadow: 0 0 24px rgba(56,189,248,0.4); }
+    .avatar-img-wrap {
+      width: 120px; height: 120px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 80px;
+    }
+    .avatar-img-wrap img { width: 100%; height: 100%; object-fit: contain; }
+    .avatar-name { font-size: 1.4rem; font-weight: 700; }
+    .avatar-sub { font-size: 0.85rem; color: #a0a0c0; font-style: italic; }
+
+    /* ─── SCREEN 2: Map ─── */
+    #screen-map {
+      align-items: center; justify-content: center;
+      background: #1a1a2e; flex-direction: column; gap: 0.75rem;
+    }
+    .map-wrapper { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+    .map {
+      position: relative;
+      width: 800px; height: 560px;
+      background: #3d7a45;
+      border: 3px solid #2d5a32;
+      border-radius: 8px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .road { position: absolute; background: #6b7280; }
+    .road-h { left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 60px; }
+    .road-v { top: 0; bottom: 0; left: 50%; transform: translateX(-50%); width: 60px; }
+    .tree { position: absolute; font-size: 28px; pointer-events: none; user-select: none; }
+    .map-hint { color: #64748b; font-size: 0.82rem; }
+
+    #avatar-sprite {
+      position: absolute;
+      width: 48px; height: 48px;
+      object-fit: contain;
+      z-index: 10;
+      image-rendering: pixelated;
+    }
+    .avatar-fallback {
+      position: absolute;
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: #a78bfa;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* ─── Hotspots ─── */
+    .hotspot {
+      position: absolute; width: 72px;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 2px; z-index: 5;
+    }
+    .hs-icon {
+      font-size: 40px;
+      animation: hs-pulse 2s ease-in-out infinite;
+      filter: drop-shadow(0 0 6px rgba(255,255,255,0.4));
+      cursor: default;
+    }
+    @keyframes hs-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+    .hs-label {
+      font-size: 0.68rem; color: #fff; font-weight: 600;
+      text-shadow: 0 1px 3px #000; white-space: nowrap;
+    }
+    .hs-btn {
+      display: none; margin-top: 4px;
+      padding: 3px 10px; background: #7c3aed;
+      color: #fff; border: none; border-radius: 6px;
+      font-size: 0.7rem; cursor: pointer; white-space: nowrap;
+      font-weight: 700;
+    }
+    .hs-btn.visible {
+      display: block;
+      animation: btn-pop .2s ease;
+    }
+    @keyframes btn-pop { from{transform:scale(.5);opacity:0} to{transform:scale(1);opacity:1} }
+    .hotspot.done .hs-icon { filter: grayscale(1) opacity(.4); animation: none; }
+    .hotspot.done .hs-label::after { content: ' ✓'; color: #4ade80; }
+
+    /* ─── Popup overlay ─── */
+    .popup-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .popup-box {
+      background: #1e1e3a; border-radius: 16px;
+      padding: 2rem; max-width: 580px; width: 92%;
+      max-height: 92vh; overflow-y: auto;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 1.25rem;
+      text-align: center;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+    }
+    .popup-box h2 { font-size: 1.6rem; font-weight: 800; }
+    .popup-box p  { font-size: 1.05rem; line-height: 1.6; }
+    .popup-box img { max-width: 100%; border-radius: 8px; max-height: 260px; object-fit: contain; }
+    .popup-box video { max-width: 100%; border-radius: 8px; }
+    .popup-btn {
+      padding: 0.6rem 1.6rem; border: none;
+      border-radius: 8px; font-weight: 700;
+      cursor: pointer; transition: transform .1s;
+    }
+    .popup-btn:hover { transform: scale(1.05); }
+    .popup-btn.big   { background: #4ade80; color: #000; font-size: 1.1rem; padding: 0.75rem 2rem; }
+    .popup-btn.small { background: #6b7280; color: #ccc; }
+    .popup-btn.close-btn { background: #7c3aed; color: #fff; font-size: 1rem; padding: 0.65rem 1.8rem; }
+
+    /* ─── Celebrity grid ─── */
+    .celeb-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 160px);
+      gap: 1rem;
+      justify-content: center;
+    }
+    .celeb-card {
+      width: 160px; height: 160px;
+      border-radius: 12px; overflow: hidden;
+      cursor: pointer;
+      border: 3px solid transparent;
+      transition: border-color .2s, transform .2s;
+      display: flex; align-items: center; justify-content: center;
+      background: #3d1a3d; font-size: 4rem;
+    }
+    .celeb-card img { width: 100%; height: 100%; object-fit: cover; }
+    .celeb-card:hover { transform: scale(1.06); border-color: #f472b6; }
+    .celeb-card.selected {
+      border-color: #f472b6;
+      box-shadow: 0 0 20px rgba(244,114,182,0.6);
+    }
+
+    /* ─── SCREEN 3: End ─── */
+    #screen-end {
+      background: #000;
+      align-items: center; justify-content: center;
+    }
+    .end-container {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 1.5rem;
+      text-align: center; padding: 2rem;
+    }
+    .end-title {
+      font-size: 3.5rem; font-weight: 900;
+      animation: end-fade 1s ease;
+    }
+    .end-sub {
+      font-size: 1.5rem; color: #9ca3af;
+      animation: end-fade 1s ease 0.3s both;
+    }
+    .end-gif {
+      max-width: 320px; border-radius: 12px;
+      animation: end-fade 1s ease 0.6s both;
+    }
+    @keyframes end-fade {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN 1: Selezione Avatar
+  ═══════════════════════════════════════════ -->
+  <div id="screen-avatar" class="screen active">
+    <div class="stars" id="stars"></div>
+    <div class="avatar-container">
+      <h1 class="game-title">🐾 Scegli il tuo personaggio</h1>
+      <div class="avatar-grid">
+
+        <div class="avatar-card" data-name="angela">
+          <div class="avatar-img-wrap">
+            <img src="assets/angela.png" alt="Angela"
+                 onerror="this.src='';this.parentElement.textContent='🦍'">
+          </div>
+          <div class="avatar-name">Angela</div>
+          <div class="avatar-sub">La più elegante</div>
+        </div>
+
+        <div class="avatar-card" data-name="alex">
+          <div class="avatar-img-wrap">
+            <img src="assets/alex.png" alt="Alex"
+                 onerror="this.src='';this.parentElement.textContent='🐷'">
+          </div>
+          <div class="avatar-name">Alex</div>
+          <div class="avatar-sub">Il più profumato</div>
+        </div>
+
+        <div class="avatar-card" data-name="iuri">
+          <div class="avatar-img-wrap">
+            <img src="assets/iuri.png" alt="Iuri"
+                 onerror="this.src='';this.parentElement.textContent='🫏'">
+          </div>
+          <div class="avatar-name">Iuri</div>
+          <div class="avatar-sub">Il più intelligente</div>
+        </div>
+
+        <div class="avatar-card" data-name="alessia">
+          <div class="avatar-img-wrap">
+            <img src="assets/alessia.png" alt="Alessia"
+                 onerror="this.src='';this.parentElement.textContent='🦢'">
+          </div>
+          <div class="avatar-name">Alessia</div>
+          <div class="avatar-sub">La più saggia</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN 2: Mappa
+  ═══════════════════════════════════════════ -->
+  <div id="screen-map" class="screen">
+    <div class="map-wrapper">
+      <div class="map" id="map">
+        <!-- Strade -->
+        <div class="road road-h"></div>
+        <div class="road road-v"></div>
+        <!-- Alberi decorativi -->
+        <div class="tree" style="left:45px;top:45px">🌳</div>
+        <div class="tree" style="left:700px;top:45px">🌲</div>
+        <div class="tree" style="left:45px;top:475px">🌲</div>
+        <div class="tree" style="left:700px;top:475px">🌳</div>
+        <div class="tree" style="left:350px;top:25px">🌿</div>
+        <div class="tree" style="left:350px;top:505px">🌿</div>
+        <div class="tree" style="left:18px;top:258px">🍀</div>
+        <div class="tree" style="left:745px;top:258px">🍀</div>
+        <div class="tree" style="left:200px;top:200px">🌾</div>
+        <div class="tree" style="left:540px;top:200px">🌾</div>
+        <div class="tree" style="left:200px;top:350px">🌾</div>
+        <div class="tree" style="left:540px;top:350px">🌾</div>
+        <!-- Avatar sprite (posizionato da JS) -->
+        <img id="avatar-sprite" src="" alt="avatar">
+        <!-- Hotspot iniettati da JS -->
+      </div>
+      <div class="map-hint">⬆⬇⬅➡ oppure WASD per muoverti · avvicinati alle icone per interagire</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN 3: Fine
+  ═══════════════════════════════════════════ -->
+  <div id="screen-end" class="screen">
+    <div class="end-container">
+      <h1 class="end-title">🎮 Gioco Finito</h1>
+      <p class="end-sub">Ora si può tornare a lavorare per fare insieme tante vacanze come quella</p>
+      <img src="assets/fine.jpeg" alt="fine" class="end-gif"
+           onerror="this.style.display='none'">
+      <img src="assets/gif-fine.gif" alt="fine gif" class="end-gif"
+           onerror="this.style.display='none'">
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       POPUP overlay condiviso
+  ═══════════════════════════════════════════ -->
+  <div id="popup-overlay" class="popup-overlay" style="display:none">
+    <div class="popup-box" id="popup-box"></div>
+  </div>
+
+
+  <script>
+    /* ─────────────────────────────────────
+       UTILS
+    ───────────────────────────────────── */
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    /* ─────────────────────────────────────
+       STATE
+    ───────────────────────────────────── */
+    const state = {
+      avatar: null,
+      completed: new Set(),
+      pos: { x: 376, y: 256 },
+      keys: new Set()
+    };
+
+    /* ─────────────────────────────────────
+       STARS (Screen 1)
+    ───────────────────────────────────── */
+    function initStars() {
+      const container = document.getElementById('stars');
+      for (let i = 0; i < 130; i++) {
+        const s = document.createElement('div');
+        s.className = 'star';
+        s.style.left = Math.random() * 100 + '%';
+        s.style.top  = Math.random() * 100 + '%';
+        s.style.setProperty('--dur', (1.5 + Math.random() * 3) + 's');
+        s.style.animationDelay = (Math.random() * 3) + 's';
+        container.appendChild(s);
+      }
+    }
+    initStars();
+
+    /* ─────────────────────────────────────
+       AVATAR SELECTION (Screen 1)
+    ───────────────────────────────────── */
+    document.querySelectorAll('.avatar-card').forEach(card => {
+      card.addEventListener('click', () => {
+        state.avatar = card.dataset.name;
+        state.completed = new Set();
+        state.pos = { x: 376, y: 256 };
+
+        // Rimuovi eventuale fallback precedente
+        const oldFb = document.getElementById('avatar-fallback');
+        if (oldFb) oldFb.remove();
+
+        // Imposta sprite
+        const sprite = document.getElementById('avatar-sprite');
+        sprite.style.display = '';
+        sprite.src = 'assets/' + state.avatar + '.png';
+        sprite.alt = state.avatar;
+        sprite.onerror = () => {
+          sprite.style.display = 'none';
+          const fallbackEmoji = { angela: '🦍', alex: '🐷', iuri: '🫏', alessia: '🦢' };
+          const fb = document.createElement('div');
+          fb.id = 'avatar-fallback';
+          fb.className = 'avatar-fallback';
+          fb.textContent = fallbackEmoji[state.avatar] || '😀';
+          document.getElementById('map').appendChild(fb);
+        };
+
+        // Reset hotspot completati
+        document.querySelectorAll('.hotspot').forEach(hs => {
+          hs.classList.remove('done');
+          hs.querySelector('.hs-btn').classList.remove('visible');
+        });
+
+        showScreen('screen-map');
+        startGame();
+      });
+    });
+
+    /* ─────────────────────────────────────
+       HOTSPOTS
+    ───────────────────────────────────── */
+    const HOTSPOTS = [
+      { id: 'paura', icon: '👻', label: 'Paura',  x: 140, y: 110 },
+      { id: 'amore', icon: '❤️', label: 'Amore',  x: 600, y: 110 },
+      { id: 'sport', icon: '🦹', label: 'Criminali', x: 140, y: 420 },
+      { id: 'soldi', icon: '💰', label: 'Soldi',  x: 600, y: 420 }
+    ];
+
+    function renderHotspots() {
+      const map = document.getElementById('map');
+      HOTSPOTS.forEach(hs => {
+        const wrap = document.createElement('div');
+        wrap.className = 'hotspot';
+        wrap.id = 'hs-' + hs.id;
+        wrap.style.left = (hs.x - 36) + 'px';
+        wrap.style.top  = (hs.y - 36) + 'px';
+        wrap.innerHTML = `
+          <div class="hs-icon">${hs.icon}</div>
+          <div class="hs-label">${hs.label}</div>
+          <button class="hs-btn" id="btn-${hs.id}" onclick="openPopup('${hs.id}')">Apri</button>
+        `;
+        map.appendChild(wrap);
+      });
+    }
+    renderHotspots();
+
+    /* ─────────────────────────────────────
+       MOVIMENTO (Screen 2)
+    ───────────────────────────────────── */
+    document.addEventListener('keydown', e => {
+      state.keys.add(e.key);
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) {
+        e.preventDefault();
+      }
+    });
+    document.addEventListener('keyup', e => state.keys.delete(e.key));
+
+    let loopRunning = false;
+
+    function gameLoop() {
+      if (document.getElementById('screen-map').classList.contains('active')) {
+        const spd = 3;
+        if (state.keys.has('ArrowLeft')  || state.keys.has('a')) state.pos.x = Math.max(0,   state.pos.x - spd);
+        if (state.keys.has('ArrowRight') || state.keys.has('d')) state.pos.x = Math.min(752,  state.pos.x + spd);
+        if (state.keys.has('ArrowUp')    || state.keys.has('w')) state.pos.y = Math.max(0,   state.pos.y - spd);
+        if (state.keys.has('ArrowDown')  || state.keys.has('s')) state.pos.y = Math.min(512,  state.pos.y + spd);
+
+        const sprite = document.getElementById('avatar-sprite');
+        sprite.style.left = state.pos.x + 'px';
+        sprite.style.top  = state.pos.y + 'px';
+
+        const fb = document.getElementById('avatar-fallback');
+        if (fb) {
+          fb.style.left = state.pos.x + 'px';
+          fb.style.top  = state.pos.y + 'px';
+        }
+
+        checkProximity();
+      }
+      requestAnimationFrame(gameLoop);
+    }
+
+    function startGame() {
+      const sprite = document.getElementById('avatar-sprite');
+      sprite.style.left = state.pos.x + 'px';
+      sprite.style.top  = state.pos.y + 'px';
+      if (!loopRunning) {
+        loopRunning = true;
+        gameLoop();
+      }
+    }
+
+    /* ─────────────────────────────────────
+       PROSSIMITÀ HOTSPOT
+    ───────────────────────────────────── */
+    function checkProximity() {
+      const cx = state.pos.x + 24;
+      const cy = state.pos.y + 24;
+      HOTSPOTS.forEach(hs => {
+        if (state.completed.has(hs.id)) return;
+        const dist = Math.hypot(cx - hs.x, cy - hs.y);
+        const btn = document.getElementById('btn-' + hs.id);
+        if (dist < 65) btn.classList.add('visible');
+        else           btn.classList.remove('visible');
+      });
+    }
+
+    /* ─────────────────────────────────────
+       POPUP SYSTEM
+    ───────────────────────────────────── */
+    function openPopup(id) {
+      document.getElementById('popup-overlay').style.display = 'flex';
+      renderPopup(id);
+    }
+
+    function closePopup(id, completed = false) {
+      document.getElementById('popup-overlay').style.display = 'none';
+      document.getElementById('popup-box').innerHTML = '';
+      if (completed) markDone(id);
+    }
+
+    function markDone(id) {
+      state.completed.add(id);
+      const hs = document.getElementById('hs-' + id);
+      if (hs) hs.classList.add('done');
+      const btn = document.getElementById('btn-' + id);
+      if (btn) btn.classList.remove('visible');
+      if (state.completed.size === 4) {
+        setTimeout(() => showScreen('screen-end'), 700);
+      }
+    }
+
+    function renderPopup(id) {
+      const box = document.getElementById('popup-box');
+      box.style.background = '#1e1e3a';
+      if (id === 'paura') { renderPaura(box, 1); return; }
+      if (id === 'amore') { renderAmore(box);    return; }
+      if (id === 'sport') { renderSport(box);    return; }
+      if (id === 'soldi') { renderSoldi(box);    return; }
+    }
+
+    /* ── PAURA 👻 ── */
+    function renderPaura(box, step) {
+      box.style.background = '#2d0000';
+      if (step === 1) {
+        box.innerHTML = `
+          <h2>👻 Popup Paura</h2>
+          <p style="font-size:1.3rem;font-weight:700;margin-top:.5rem">
+            È molto spaventoso,<br>sei sicuro?
+          </p>
+          <img src="assets/gif-urlo-1.gif" alt="urlo" style="max-height:180px;border-radius:8px"
+               onerror="this.style.display='none'">
+          <div style="display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:.5rem">
+            <button class="popup-btn big" onclick="closePopup('paura',false)">NO, grazie!</button>
+            <button class="popup-btn small" style="font-size:0.7rem;padding:5px 12px"
+                    onclick="renderPaura(document.getElementById('popup-box'),2)">sì</button>
+          </div>`;
+      } else if (step === 2) {
+        box.innerHTML = `
+          <h2>⚠️ Attenzione!</h2>
+          <p style="font-size:1.1rem">
+            Le immagini seguenti sono riservate ai <strong>18+</strong>
+          </p>
+          <img src="assets/gif-urlo-2.gif" alt="urlo" style="max-height:180px;border-radius:8px"
+               onerror="this.style.display='none'">
+          <div style="display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:.5rem">
+            <button class="popup-btn big" onclick="closePopup('paura',false)">NO, torno indietro!</button>
+            <button class="popup-btn small"
+                    style="font-size:0.48rem;padding:2px 6px;opacity:0.65"
+                    onclick="renderPaura(document.getElementById('popup-box'),3)">ok sì</button>
+          </div>`;
+      } else {
+        box.innerHTML = `
+          <h2>😱 Eccola!</h2>
+          <img src="assets/piedi.jpg" alt="piedi"
+               onerror="this.style.display='none'">
+          <button class="popup-btn close-btn" onclick="closePopup('paura',true)">
+            CHIUDI (se riesci)
+          </button>`;
+      }
+    }
+
+    /* ── AMORE ❤️ ── */
+    function renderAmore(box) {
+      box.style.background = '#2d0020';
+      box.innerHTML = `
+        <h2>❤️ Decidi la fidanzata di Petta!</h2>
+        <p style="color:#f9a8d4;font-size:0.9rem">Scegli con saggezza 💕</p>
+        <div class="celeb-grid">
+          ${[1,2,3,4,5].map(n => `
+            <div class="celeb-card" onclick="selectCeleb(this)">
+              <img src="assets/celeb${n}.jpg" alt="Celebrity ${n}"
+                   onerror="this.src='';this.parentElement.innerHTML='⭐'">
+            </div>`).join('')}
+        </div>
+        <div id="amore-result" style="display:none;flex-direction:column;align-items:center;gap:1rem">
+          <p style="font-size:1.4rem;font-weight:800;color:#f472b6">Buona scelta! 😏</p>
+          <button class="popup-btn close-btn" onclick="closePopup('amore',true)">
+            Conferma la scelta 💘
+          </button>
+        </div>`;
+    }
+
+    function selectCeleb(card) {
+      document.querySelectorAll('.celeb-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      const result = document.getElementById('amore-result');
+      result.style.display = 'flex';
+    }
+
+    /* ── CRIMINALI 🦹 ── */
+    function renderSport(box) {
+      box.style.background = '#0d0d0d';
+      box.innerHTML = `
+        <h2>🦹 Popup Criminali</h2>
+        <video controls autoplay style="width:100%;max-height:260px;border-radius:8px">
+          <source src="assets/video-criminali.mp4" type="video/mp4">
+          <p style="color:#f87171;padding:1rem;font-size:0.9rem">
+            Video non trovato — aggiungi <code>assets/video-criminali.mp4</code>
+          </p>
+        </video>
+        <button class="popup-btn close-btn" onclick="closePopup('sport',true)">Chiudi 🔒</button>`;
+    }
+
+    /* ── SOLDI 💰 ── */
+    const SOLDI_STEPS = [
+      { caption: 'Cerchiamo i soldi insieme 🔍',                            img: 'assets/soldi-1.jpg' },
+      { caption: 'Cerchiamo meglio 👀',                                     img: 'assets/soldi-2.jpg' },
+      { caption: 'Scaviamo più a fondo ⛏️',                                  img: 'assets/soldi-3.jpg' },
+      { caption: 'Dai ci siamo quasi... 🤞',                                img: 'assets/soldi-4.jpg' },
+      { caption: 'Non abbiamo trovato niente, ma forse c\'è una speranza...', img: 'assets/gif-povero.gif' },
+      { caption: 'Forse mandando qua il curriculum... 📄',                         img: 'assets/soldi-5.png' }
+    ];
+
+    function renderSoldi(box, step) {
+      step = step || 1;
+      box.style.background = '#001a00';
+
+      if (step === 1) {
+        box.innerHTML = `
+          <h2>💰 Popup Soldi</h2>
+          <div id="soldi-content" style="display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%;transition:opacity .25s ease">
+            <p id="soldi-caption" style="font-size:1.3rem;font-weight:800;color:#4ade80;margin:.25rem 0"></p>
+            <p id="soldi-counter" style="font-size:0.8rem;color:#4a6a4a"></p>
+            <img id="soldi-img" src="" alt="" style="max-height:260px;border-radius:8px;display:none" onerror="this.style.display='none'">
+          </div>
+          <button id="soldi-btn" class="popup-btn big"></button>`;
+      }
+
+      function applyStep() {
+        const { caption, img } = SOLDI_STEPS[step - 1];
+        const isLast = step === SOLDI_STEPS.length;
+        const photoIndex = SOLDI_STEPS.slice(0, step).filter(s => s.img).length;
+        const totalPhotos = SOLDI_STEPS.filter(s => s.img).length;
+
+        document.getElementById('soldi-caption').textContent = caption;
+        const counter = document.getElementById('soldi-counter');
+        counter.textContent = img ? `${photoIndex} / ${totalPhotos}` : '';
+        const imgEl = document.getElementById('soldi-img');
+        if (img) { imgEl.src = img; imgEl.style.display = ''; }
+        else      { imgEl.style.display = 'none'; }
+
+        const btn = document.getElementById('soldi-btn');
+        if (isLast) {
+          btn.className = 'popup-btn close-btn';
+          btn.textContent = 'Chiudi 😢';
+          btn.onclick = () => closePopup('soldi', true);
+        } else {
+          btn.className = 'popup-btn big';
+          btn.textContent = 'Avanti ➡';
+          btn.onclick = () => {
+            const c = document.getElementById('soldi-content');
+            c.style.opacity = '0';
+            setTimeout(() => { renderSoldi(document.getElementById('popup-box'), step + 1); c.style.opacity = '1'; }, 250);
+          };
+        }
+      }
+
+      applyStep();
+    }
+  </script>
+</body>
+</html>

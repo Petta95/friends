@@ -1,0 +1,35 @@
+CARTELLA ASSETS - Il Gioco di Petta
+====================================
+
+Metti qui i seguenti file:
+
+AVATAR (PNG dei personaggi)
+  angela.png       ← il gorilla di Angela
+  alex.png         ← il maiale di Alex
+  iuri.png         ← l'asino di Iuri
+  alessia.png      ← lo struzzo di Alessia
+
+POPUP PAURA
+  piedi.jpg        ← l'immagine dei piedi
+  gif-urlo.gif     ← sticker/gif di uno che urla
+
+POPUP AMORE (5 celebrity)
+  celeb1.jpg
+  celeb2.jpg
+  celeb3.jpg
+  celeb4.jpg
+  celeb5.jpg
+  gif-malizioso.gif ← sticker/gif malizioso
+
+POPUP SPORT
+  video-sport.mp4  ← il tuo video del salto del muretto
+  gif-atleta.gif   ← sticker/gif di un atleta
+
+POPUP SOLDI
+  gif-povero.gif   ← sticker/gif di un povero
+
+SCHERMATA FINALE
+  gif-piange.gif   ← sticker/gif di uno che piange
+
+NOTA: se un file manca, il gioco va lo stesso
+(le immagini mancanti vengono semplicemente nascoste).
