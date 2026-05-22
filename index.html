@@ -259,7 +259,7 @@
       background: #3d1a3d; font-size: 4rem;
       touch-action: manipulation;
     }
-    .celeb-card img { width: 100%; height: 100%; object-fit: cover; }
+    .celeb-card img { width: 100%; height: 100%; object-fit: contain; }
     .celeb-card:hover  { transform: scale(1.06); border-color: #f472b6; }
     .celeb-card:active { transform: scale(0.97); }
     .celeb-card.selected {
@@ -270,7 +270,7 @@
     /* ─── Responsive: Celebrity grid ─── */
     @media (max-width: 600px) {
       .celeb-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
-      .celeb-card { width: auto; height: 120px; font-size: 3rem; }
+      .celeb-card { width: auto; height: 170px; font-size: 3rem; }
     }
 
     /* ─── SCREEN 3: End ─── */
@@ -429,7 +429,8 @@
       avatar: null,
       completed: new Set(),
       pos: { x: 376, y: 256 },
-      keys: new Set()
+      keys: new Set(),
+      touchDir: { x: 0, y: 0 }
     };
 
     /* ─────────────────────────────────────
@@ -468,7 +469,7 @@
     function updateMapHint() {
       const isTouch = window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 768;
       document.getElementById('map-hint').textContent = isTouch
-        ? '🕹 Usa il pad per muoverti · tocca le icone per interagire'
+        ? '👆 Trascina sulla mappa o usa il pad · tocca le icone per interagire'
         : '⬆⬇⬅➡ oppure WASD per muoverti · avvicinati alle icone per interagire';
     }
 
@@ -492,6 +493,49 @@
         btn.classList.remove('pressed');
       });
     });
+
+    /* ─────────────────────────────────────
+       TOUCH-DRAG sulla mappa
+    ───────────────────────────────────── */
+    (function() {
+      const mapContainer = document.getElementById('map-scale-container');
+      let dragTouchId = null;
+      let dragStartX  = 0;
+      let dragStartY  = 0;
+
+      mapContainer.addEventListener('touchstart', e => {
+        if (e.target.closest('.hs-btn') || e.target.closest('.hs-icon')) return;
+        const touch = e.changedTouches[0];
+        dragTouchId = touch.identifier;
+        dragStartX  = touch.clientX;
+        dragStartY  = touch.clientY;
+        state.touchDir = { x: 0, y: 0 };
+      }, { passive: true });
+
+      mapContainer.addEventListener('touchmove', e => {
+        if (dragTouchId === null) return;
+        const touch = Array.from(e.changedTouches).find(t => t.identifier === dragTouchId);
+        if (!touch) return;
+        const dx = touch.clientX - dragStartX;
+        const dy = touch.clientY - dragStartY;
+        const len = Math.hypot(dx, dy);
+        if (len > 8) {
+          state.touchDir = { x: dx / len, y: dy / len };
+        } else {
+          state.touchDir = { x: 0, y: 0 };
+        }
+      }, { passive: true });
+
+      function stopDrag(e) {
+        const touch = Array.from(e.changedTouches).find(t => t.identifier === dragTouchId);
+        if (touch) {
+          dragTouchId = null;
+          state.touchDir = { x: 0, y: 0 };
+        }
+      }
+      mapContainer.addEventListener('touchend',    stopDrag, { passive: true });
+      mapContainer.addEventListener('touchcancel', stopDrag, { passive: true });
+    })();
 
     /* ─────────────────────────────────────
        STARS (Screen 1)
@@ -552,7 +596,7 @@
     const HOTSPOTS = [
       { id: 'paura', icon: '👻', label: 'Paura',     x: 140, y: 110 },
       { id: 'amore', icon: '❤️', label: 'Amore',     x: 600, y: 110 },
-      { id: 'sport', icon: '🦹', label: 'Criminali', x: 140, y: 420 },
+      { id: 'sport', icon: '🦹', label: 'Successo', x: 140, y: 420 },
       { id: 'soldi', icon: '💰', label: 'Soldi',     x: 600, y: 420 }
     ];
 
@@ -602,6 +646,10 @@
         if (state.keys.has('ArrowRight') || state.keys.has('d')) state.pos.x = Math.min(752,  state.pos.x + spd);
         if (state.keys.has('ArrowUp')    || state.keys.has('w')) state.pos.y = Math.max(0,   state.pos.y - spd);
         if (state.keys.has('ArrowDown')  || state.keys.has('s')) state.pos.y = Math.min(512,  state.pos.y + spd);
+        if (state.touchDir.x !== 0 || state.touchDir.y !== 0) {
+          state.pos.x = Math.max(0, Math.min(752, state.pos.x + spd * state.touchDir.x));
+          state.pos.y = Math.max(0, Math.min(512, state.pos.y + spd * state.touchDir.y));
+        }
 
         const sprite = document.getElementById('avatar-sprite');
         sprite.style.left = state.pos.x + 'px';
@@ -750,7 +798,7 @@
     function renderSport(box) {
       box.style.background = '#0d0d0d';
       box.innerHTML = `
-        <h2>🦹 Popup Criminali</h2>
+        <h2>🦹 Popup Successo</h2>
         <video controls autoplay style="width:100%;max-height:260px;border-radius:8px">
           <source src="assets/video-criminali.mp4" type="video/mp4">
           <p style="color:#f87171;padding:1rem;font-size:0.9rem">
@@ -780,7 +828,7 @@
           <div id="soldi-content" style="display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%;transition:opacity .25s ease">
             <p id="soldi-caption" style="font-size:1.3rem;font-weight:800;color:#4ade80;margin:.25rem 0"></p>
             <p id="soldi-counter" style="font-size:0.8rem;color:#4a6a4a"></p>
-            <img id="soldi-img" src="" alt="" style="max-height:260px;border-radius:8px;display:none" onerror="this.style.display='none'">
+            <img id="soldi-img" src="" alt="" style="max-height:min(220px,38vh);width:100%;border-radius:8px;object-fit:contain;display:none" onerror="this.style.display='none'">
           </div>
           <button id="soldi-btn" class="popup-btn big"></button>`;
       }
@@ -795,7 +843,7 @@
         const counter = document.getElementById('soldi-counter');
         counter.textContent = img ? `${photoIndex} / ${totalPhotos}` : '';
         const imgEl = document.getElementById('soldi-img');
-        if (img) { imgEl.src = img; imgEl.style.display = ''; }
+        if (img) { imgEl.src = img; imgEl.style.display = 'block'; }
         else      { imgEl.style.display = 'none'; }
 
         const btn = document.getElementById('soldi-btn');
